@@ -186,6 +186,7 @@ def _prepare_shape(shape):
 
 def _prepare_raw_nodes(model: tf.keras.Model) -> Dict:
     model_config = model.get_config()
+    # print('model_config\n', model_config)
     raw_nodes = Dict()
     for layer in model_config['layers']:
         layer_name = layer['name']
@@ -196,6 +197,7 @@ def _prepare_raw_nodes(model: tf.keras.Model) -> Dict:
 
         if layer['inbound_nodes']:
             is_shared = len(layer['inbound_nodes']) > 1
+            # print('is_shared', is_shared)
             for i, inbound_node in enumerate(layer['inbound_nodes']):
                 input_shape = _prepare_shape(model_layer.inbound_nodes[i].input_shapes)
                 instance = raw_nodes[layer_name][i]
@@ -210,6 +212,7 @@ def _prepare_raw_nodes(model: tf.keras.Model) -> Dict:
                 if layer_type in GENERAL_CONV_LAYERS:
                     module_attributes = _get_module_attributes(model_layer, instance)
                     instance.update({NNCFGraph.MODULE_ATTRIBUTES: module_attributes})
+                # print('inbound_node', len(inbound_node), inbound_node)
                 for parent_name, parent_instance_index, parent_out_ports, _ in inbound_node:
                     parent_instance = raw_nodes[parent_name][parent_instance_index]
                     if parent_instance['out_ports']:

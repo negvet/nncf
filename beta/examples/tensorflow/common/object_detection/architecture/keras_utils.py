@@ -13,11 +13,12 @@
 
 from tensorflow.python.keras import backend
 
-try:
-    from tensorflow.python.keras.engine import keras_tensor
-    keras_tensor.disable_keras_tensors()
-except ImportError:
-    keras_tensor = None
+# try:
+#     from tensorflow.python.keras.engine import keras_tensor
+#     keras_tensor.disable_keras_tensors()
+# except ImportError:
+#      keras_tensor = None
+keras_tensor = None
 
 
 class NoOpContextManager:
