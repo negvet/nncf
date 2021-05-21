@@ -56,12 +56,8 @@ class MinMaxStatisticsCollector:
             for val in self.channel_axes:
                 val = (ndims + val) % ndims
                 axis.remove(val)
-            self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
-            self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
-        else:
-            axis.remove(0)
-            self.all_min_values.extend(tf.unstack(tf.reduce_min(inputs, axis=axis)))
-            self.all_max_values.extend(tf.unstack(tf.reduce_max(inputs, axis=axis)))
+        self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
+        self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
 
     def __call__(self, *args, **kwargs):
         self.call(*args, **kwargs)
