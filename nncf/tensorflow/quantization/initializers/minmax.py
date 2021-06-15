@@ -49,19 +49,61 @@ class MinMaxStatisticsCollector:
                 self.all_max_values[i] = tf.reshape(t, shape=(new_shape))
         return tf.math.reduce_mean(tf.stack(self.all_max_values), axis=0)
 
+    # def call(self, inputs):
+    #     ndims = len(inputs.shape)
+    #     axis = list(range(ndims))
+    #     if self.per_channel:
+    #         for val in self.channel_axes:
+    #             val = (ndims + val) % ndims
+    #             axis.remove(val)
+    #         self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
+    #         self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
+    #     else:
+    #         axis.remove(0)
+    #         self.all_min_values.extend(tf.unstack(tf.reduce_min(inputs, axis=axis)))
+    #         self.all_max_values.extend(tf.unstack(tf.reduce_max(inputs, axis=axis)))
+
     def call(self, inputs):
         ndims = len(inputs.shape)
         axis = list(range(ndims))
+
+        print('\n\ninputs', inputs.shape)
+        print('self.channel_axes', self.channel_axes)
+
         if self.per_channel:
+            print('self.per_channel', self.per_channel)
             for val in self.channel_axes:
                 val = (ndims + val) % ndims
                 axis.remove(val)
-            self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
-            self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
-        else:
-            axis.remove(0)
-            self.all_min_values.extend(tf.unstack(tf.reduce_min(inputs, axis=axis)))
-            self.all_max_values.extend(tf.unstack(tf.reduce_max(inputs, axis=axis)))
+            print('axis', axis)
+        print('tf.reduce_min(inputs, axis=axis)', tf.reduce_min(inputs, axis=axis).shape)
+        self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
+        self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
+
+        # inputs(255, 7, 7, 960)
+        # self.channel_axes[-1]
+
+        # inputs(3, 3, 960, 1)
+        # self.channel_axes(2, 3)
+        ########################
+        # inputs(1, 1, 960, 320)
+        # self.channel_axes[-1]
+
+        # Activation per channel
+        # inputs(255, 28, 28, 192)
+        # self.channel_axes[-1]
+        # self.per_channel True
+        # axis[0, 1, 2]
+        # tf.reduce_min(inputs, axis=axis)(192, )
+
+        # Weights per channel
+        # inputs(1, 1, 576, 160)
+        # self.channel_axes[-1]
+        # self.per_channel
+        # True
+        # axis[0, 1, 2]
+        # tf.reduce_min(inputs, axis=axis)(160, )
+
 
     def __call__(self, *args, **kwargs):
         self.call(*args, **kwargs)

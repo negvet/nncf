@@ -136,6 +136,18 @@ class MeanMinMaxStatisticCollector(OfflineTensorStatisticCollector):
                     self._all_min_values[reduction_shape] = deque(maxlen=self._window_size)
                 if reduction_shape not in self._all_max_values:
                     self._all_max_values[reduction_shape] = deque(maxlen=self._window_size)
+
+                print('\nx', x.shape)
+                print('reduction_shape', reduction_shape)
+                print('min_reduce_like(x, reduction_shape)', min_reduce_like(x, reduction_shape).shape)
+                # x torch.Size([256, 160, 7, 7])
+                # reduction_shape(1, )
+                # min_reduce_like(x, reduction_shape) torch.Size([1])
+
+                # x torch.Size([160, 960, 1, 1])
+                # reduction_shape(160, 1, 1, 1)
+                # min_reduce_like(x, reduction_shape) torch.Size([160, 1, 1, 1])
+
                 self._all_min_values[reduction_shape].append(min_reduce_like(x, reduction_shape))
                 self._all_max_values[reduction_shape].append(max_reduce_like(x, reduction_shape))
 
@@ -147,12 +159,17 @@ class MeanMinMaxStatisticCollector(OfflineTensorStatisticCollector):
     def _get_statistics(self) -> Dict[ReductionShape, MinMaxTensorStatistic]:
         retval = {}
         for rs in self._reduction_shapes:
+            print('\nrs', rs)
             stacked_min = torch.stack(list(self._all_min_values[rs]))
+            print('stacked_min', stacked_min.shape)
             min_values = stacked_min.mean(dim=0).view(rs)
+            print('min_values', min_values.shape)
 
             stacked_max = torch.stack(list(self._all_max_values[rs]))
             max_values = stacked_max.mean(dim=0).view(rs)
             retval[rs] = MinMaxTensorStatistic(min_values, max_values)
+            print('stacked_max', stacked_max.shape)
+            print('max_values', max_values.shape)
         return retval
 
 

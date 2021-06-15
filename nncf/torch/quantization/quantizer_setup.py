@@ -51,6 +51,15 @@ class SingleConfigQuantizationPoint(QuantizationPointBase):
         return str(self.insertion_point) + ' ' + str(self.qconfig)
 
     def get_all_scale_shapes(self, input_shape: Tuple[int]) -> List[Tuple[int]]:
+        scale_shapes = [tuple(get_scale_shape(
+            input_shape,
+            is_weights=self.is_weight_quantization_point(), per_channel=self.qconfig.per_channel))]
+        print('\nget_all_scale_shapes')
+        print('input_shape', input_shape)
+        print('self.is_weight_quantization_point()', self.is_weight_quantization_point())
+        print('self.qconfig.per_channel', self.qconfig.per_channel)
+        print('scale_shapes', scale_shapes)
+
         return [tuple(get_scale_shape(
             input_shape,
             is_weights=self.is_weight_quantization_point(), per_channel=self.qconfig.per_channel))]

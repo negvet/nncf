@@ -55,6 +55,14 @@ class RangeInitConfig:
     def generate_stat_collector(self, reduction_shapes: Set[ReductionShape] = None,
                                 num_samples_to_collect_override: int = None) -> TensorStatisticCollectorBase:
         num_samples = self.num_init_samples
+
+        print('\nself.init_type', self.init_type)
+        print('reduction_shapes', reduction_shapes)
+        print('self.num_init_samples', self.num_init_samples)
+        print('num_samples_to_collect_override', num_samples_to_collect_override) # num_batches
+        # print(b)
+
+
         if num_samples_to_collect_override is not None:
             num_samples = num_samples_to_collect_override
         if self.init_type == "min_max":
