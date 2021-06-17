@@ -282,9 +282,9 @@ class QuantizationController(TFCompressionAlgorithmController):
     def initialize(self, dataset=None, loss=None):
         self._initializer(self._model, dataset, loss)
 
-        init_bn_adapt_config = self._config.get('initializer', {}).get('batchnorm_adaptation', {})
-        if init_bn_adapt_config:
-            self._run_batchnorm_adaptation()
+        # init_bn_adapt_config = self._config.get('initializer', {}).get('batchnorm_adaptation', {})
+        # if init_bn_adapt_config:
+        #     self._run_batchnorm_adaptation()
 
     def statistics(self, quickly_collected_only: bool = False) -> NNCFStatistics:
         return NNCFStatistics()

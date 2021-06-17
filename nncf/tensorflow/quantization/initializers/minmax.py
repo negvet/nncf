@@ -22,10 +22,11 @@ from nncf.tensorflow.layers.operation import InputType
 from nncf.tensorflow.quantization.layers import FakeQuantize
 
 
-class MinMaxStatisticsCollector:
-    def __init__(self, per_channel, channel_axes):
+class MeanMinMaxStatisticsCollector:
+    def __init__(self, per_channel, channel_axes, input_type):
         self.per_channel = per_channel
         self.channel_axes = channel_axes if isinstance(channel_axes, (list, tuple)) else [channel_axes]
+        self.input_type = input_type
         self.all_min_values = []
         self.all_max_values = []
 
@@ -49,61 +50,79 @@ class MinMaxStatisticsCollector:
                 self.all_max_values[i] = tf.reshape(t, shape=(new_shape))
         return tf.math.reduce_mean(tf.stack(self.all_max_values), axis=0)
 
-    # def call(self, inputs):
-    #     ndims = len(inputs.shape)
-    #     axis = list(range(ndims))
-    #     if self.per_channel:
-    #         for val in self.channel_axes:
-    #             val = (ndims + val) % ndims
-    #             axis.remove(val)
-    #         self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
-    #         self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
-    #     else:
-    #         axis.remove(0)
-    #         self.all_min_values.extend(tf.unstack(tf.reduce_min(inputs, axis=axis)))
-    #         self.all_max_values.extend(tf.unstack(tf.reduce_max(inputs, axis=axis)))
+    def call(self, inputs):
+        ndims = len(inputs.shape)
+        axis = list(range(ndims))
+
+        if self.per_channel:
+            for val in self.channel_axes:
+                val = (ndims + val) % ndims
+                axis.remove(val)
+
+        # # Per-batch statistics collection
+        # self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
+        # self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
+
+        # Per-sample statistics collection
+        # TODO: analize for a_ch case
+        if self.input_type == InputType.INPUTS:
+            axis.remove(0) # TODO: does batch always the first dimention?
+            self.all_min_values.extend(tf.unstack(tf.reduce_min(inputs, axis=axis)))
+            self.all_max_values.extend(tf.unstack(tf.reduce_max(inputs, axis=axis)))
+        elif self.input_type == InputType.WEIGHTS:
+            self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
+            self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
+
+    def __call__(self, *args, **kwargs):
+        self.call(*args, **kwargs)
+
+
+class MinMaxStatisticsCollector:
+    def __init__(self, per_channel, channel_axes, input_type):
+        self.per_channel = per_channel
+        self.channel_axes = channel_axes if isinstance(channel_axes, (list, tuple)) else [channel_axes]
+        self.input_type = input_type
+        self.all_min_values = []
+        self.all_max_values = []
+
+    @property
+    def min(self):
+        if self.per_channel:
+            new_shape = 1
+            for val in self.all_min_values[0].shape:
+                new_shape *= val
+            for i, t in enumerate(self.all_min_values):
+                self.all_min_values[i] = tf.reshape(t, shape=(new_shape))
+        return tf.math.reduce_min(tf.stack(self.all_min_values), axis=0)
+
+    @property
+    def max(self):
+        if self.per_channel:
+            new_shape = 1
+            for val in self.all_max_values[0].shape:
+                new_shape *= val
+            for i, t in enumerate(self.all_max_values):
+                self.all_max_values[i] = tf.reshape(t, shape=(new_shape))
+        return tf.math.reduce_max(tf.stack(self.all_max_values), axis=0)
 
     def call(self, inputs):
         ndims = len(inputs.shape)
         axis = list(range(ndims))
 
-        print('\n\ninputs', inputs.shape)
-        print('self.channel_axes', self.channel_axes)
-
         if self.per_channel:
-            print('self.per_channel', self.per_channel)
             for val in self.channel_axes:
                 val = (ndims + val) % ndims
                 axis.remove(val)
-            print('axis', axis)
-        print('tf.reduce_min(inputs, axis=axis)', tf.reduce_min(inputs, axis=axis).shape)
-        self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
-        self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
 
-        # inputs(255, 7, 7, 960)
-        # self.channel_axes[-1]
-
-        # inputs(3, 3, 960, 1)
-        # self.channel_axes(2, 3)
-        ########################
-        # inputs(1, 1, 960, 320)
-        # self.channel_axes[-1]
-
-        # Activation per channel
-        # inputs(255, 28, 28, 192)
-        # self.channel_axes[-1]
-        # self.per_channel True
-        # axis[0, 1, 2]
-        # tf.reduce_min(inputs, axis=axis)(192, )
-
-        # Weights per channel
-        # inputs(1, 1, 576, 160)
-        # self.channel_axes[-1]
-        # self.per_channel
-        # True
-        # axis[0, 1, 2]
-        # tf.reduce_min(inputs, axis=axis)(160, )
-
+        # Per-sample statistics collection
+        # TODO: analize for a_ch case
+        if self.input_type == InputType.INPUTS:
+            axis.remove(0) # TODO: does batch always the first dimention?
+            self.all_min_values.extend(tf.unstack(tf.reduce_min(inputs, axis=axis)))
+            self.all_max_values.extend(tf.unstack(tf.reduce_max(inputs, axis=axis)))
+        elif self.input_type == InputType.WEIGHTS:
+            self.all_min_values.append(tf.reduce_min(inputs, axis=axis))
+            self.all_max_values.append(tf.reduce_max(inputs, axis=axis))
 
     def __call__(self, *args, **kwargs):
         self.call(*args, **kwargs)
@@ -174,16 +193,23 @@ class MinMaxInitializer(TFCompressionAlgorithmInitializer):
     def __init__(self, config):
         range_config = config.get('initializer', {}).get('range', {})
 
-        self.num_steps = range_config.get('num_init_samples', 100)
+        # self.num_steps = range_config.get('num_init_samples', 100)
         self.nncf_quantization_operation_classes = NNCF_QUANTIZATION_OPERATONS.registry_dict.values()
 
-        range_type = range_config.get('type', 'minmax')
-        if range_type == 'minmax':
-            self.statistics_collector = MinMaxStatisticsCollector
-        elif range_type == 'minmax_percentile':
-            self.statistics_collector = MinMaxPercentileStatisticsCollector
-        else:
-            raise ValueError('Range type {} is not supported.'.format(range_type))
+        self.num_steps = 10
+
+        # range_type = range_config.get('type', 'mean_min_max')
+        # if range_type == 'min_max':
+        #     self.statistics_collector = MinMaxStatisticsCollector
+        # elif range_type == 'mean_min_max':
+        #     self.statistics_collector = MeanMinMaxStatisticsCollector
+        # elif range_type == 'minmax_percentile':
+        #     self.statistics_collector = MinMaxPercentileStatisticsCollector
+        # else:
+        #     raise ValueError('Range type {} is not supported.'.format(range_type))
+
+        self.statistics_collector = MinMaxStatisticsCollector
+        print('MinMaxStatisticsCollector used')
 
     def call(self, model, dataset=None, loss=None):
         layer_statistics = []
@@ -192,7 +218,7 @@ class MinMaxInitializer(TFCompressionAlgorithmInitializer):
         for layer in model.layers:
             if isinstance(layer, FakeQuantize):
                 channel_axes = get_channel_axis(InputType.INPUTS, '', layer)
-                minmax = self.statistics_collector(layer.per_channel, channel_axes)
+                minmax = self.statistics_collector(layer.per_channel, channel_axes, InputType.INPUTS)
                 handles.append(layer.register_hook_pre_quantizer(minmax))
                 layer.enabled = False
                 layer_statistics.append((layer, minmax))
@@ -201,7 +227,7 @@ class MinMaxInitializer(TFCompressionAlgorithmInitializer):
                     for op_name, op in ops.items():
                         if op.__class__ in self.nncf_quantization_operation_classes:
                             channel_axes = get_channel_axis(InputType.WEIGHTS, weight_attr, layer)
-                            minmax = self.statistics_collector(op.per_channel, channel_axes)
+                            minmax = self.statistics_collector(op.per_channel, channel_axes, InputType.WEIGHTS)
                             handles.append(op.register_hook_pre_call(minmax))
                             op.enabled = False
                             op_statistics.append((layer, op_name, op, minmax))

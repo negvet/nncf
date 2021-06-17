@@ -139,7 +139,7 @@ class MeanMinMaxStatisticCollector(OfflineTensorStatisticCollector):
 
                 print('\nx', x.shape)
                 print('reduction_shape', reduction_shape)
-                print('min_reduce_like(x, reduction_shape)', min_reduce_like(x, reduction_shape).shape)
+                print('min_reduce_like(x, reduction_shape)', min_reduce_like(x, reduction_shape).shape, min_reduce_like(x, reduction_shape))
                 # x torch.Size([256, 160, 7, 7])
                 # reduction_shape(1, )
                 # min_reduce_like(x, reduction_shape) torch.Size([1])
@@ -177,12 +177,16 @@ class MedianMADStatisticCollector(OfflineTensorStatisticCollector):
     def _get_statistics(self) -> Dict[ReductionShape, MedianMADTensorStatistic]:
         retval = {} # type: Dict[ReductionShape, MedianMADTensorStatistic]
         for reduction_shape in self._reduction_shapes:
+            # print('\nreduction_shape', reduction_shape)
             per_channel_history = get_per_channel_history(self._samples, reduction_shape,
                                                           discard_zeros=True)
+            # print('per_channel_history', [item.shape for item in per_channel_history])
             per_channel_median = [np.median(channel_hist) for channel_hist in per_channel_history]
+            # print('per_channel_median', [item.shape for item in per_channel_median])
             per_channel_mad = []
             for idx, median in enumerate(per_channel_median):
                 per_channel_mad.append(np.median(abs(per_channel_history[idx] - median)))
+            # print('per_channel_mad', [item.shape for item in per_channel_mad])
 
             numpy_median = np.asarray(per_channel_median)
             numpy_mad = np.asarray(per_channel_mad)
@@ -192,6 +196,11 @@ class MedianMADStatisticCollector(OfflineTensorStatisticCollector):
             median_tensor = expand_like(median_tensor, reduction_shape)
             mad_tensor = expand_like(mad_tensor, reduction_shape)
             retval[reduction_shape] = MedianMADTensorStatistic(median_tensor, mad_tensor)
+
+
+            print('numpy_median', numpy_median.shape)
+            print('numpy_mad', numpy_mad.shape)
+
 
         return retval
 
@@ -207,11 +216,17 @@ class PercentileStatisticCollector(OfflineTensorStatisticCollector):
     def _get_statistics(self) -> Dict[ReductionShape, PercentileTensorStatistic]:
         retval = {}  # type: Dict[ReductionShape, PercentileTensorStatistic]
         for reduction_shape in self._reduction_shapes:
+            print('\nreduction_shape', reduction_shape)
             per_channel_history = get_per_channel_history(self._samples, reduction_shape)
+            print('per_channel_history', [item.shape for item in per_channel_history])
             percentile_vs_values_dict = {}  # type: Dict[float, torch.Tensor]
+            print('self._percentiles_to_collect', self._percentiles_to_collect)
             for pc in self._percentiles_to_collect:
+                print('pc', pc)
                 per_channel_percentiles = [np.percentile(channel_hist, pc) for channel_hist in per_channel_history]
+                print('per_channel_percentiles', per_channel_percentiles)
                 numpy_percentiles = np.asarray(per_channel_percentiles)
+                print('numpy_percentiles', numpy_percentiles)
                 torch_percentiles = torch.from_numpy(numpy_percentiles).to(dtype=torch.float)
                 torch_percentiles = expand_like(torch_percentiles, reduction_shape)
                 percentile_vs_values_dict[pc] = torch_percentiles
@@ -227,6 +242,7 @@ class MeanPercentileStatisticCollector(OfflineTensorStatisticCollector):
         super().__init__(reduction_shapes, num_samples, window_size)
         self._window_size = window_size
         self._all_pct_values = {}  # type: Dict[float, Dict[ReductionShape, Deque]]
+        print('percentiles_to_collect', percentiles_to_collect)
         for pc in percentiles_to_collect:
             self._all_pct_values[pc] = {}
             if self._reduction_shapes is not None:
@@ -239,6 +255,10 @@ class MeanPercentileStatisticCollector(OfflineTensorStatisticCollector):
                 for reduction_shape in self._reduction_shapes:
                     if reduction_shape not in self._all_pct_values[pct]:
                         self._all_pct_values[pct][reduction_shape] = deque(maxlen=self._window_size)
+                    print('\nCollecting stats, input x: ', x.shape)
+                    print('reduction_shape', reduction_shape)
+                    print('pct', pct)
+                    print('percentile_reduce_like(x, reduction_shape, pct)', percentile_reduce_like(x, reduction_shape, pct).shape)
                     self._all_pct_values[pct][reduction_shape].append(percentile_reduce_like(x, reduction_shape, pct))
 
     def _reset(self):

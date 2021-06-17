@@ -60,26 +60,26 @@ class RangeInitConfig:
         print('reduction_shapes', reduction_shapes)
         print('self.num_init_samples', self.num_init_samples)
         print('num_samples_to_collect_override', num_samples_to_collect_override) # num_batches
-        # print(b)
 
+        return MeanPercentileStatisticCollector([0.1, 99.9], reduction_shapes, num_samples)
 
-        if num_samples_to_collect_override is not None:
-            num_samples = num_samples_to_collect_override
-        if self.init_type == "min_max":
-            return MinMaxStatisticCollector(reduction_shapes, num_samples)
-        if self.init_type == "mean_min_max":
-            return MeanMinMaxStatisticCollector(reduction_shapes, num_samples)
-        if self.init_type == "threesigma":
-            return MedianMADStatisticCollector(reduction_shapes, num_samples)
-        if self.init_type == "percentile":
-            min_percentile = self.init_type_specific_params.get("min_percentile", 0.1)
-            max_percentile = self.init_type_specific_params.get("max_percentile", 99.9)
-            return PercentileStatisticCollector([min_percentile, max_percentile], reduction_shapes, num_samples)
-        if self.init_type == "mean_percentile":
-            min_percentile = self.init_type_specific_params.get("min_percentile", 0.1)
-            max_percentile = self.init_type_specific_params.get("max_percentile", 99.9)
-            return MeanPercentileStatisticCollector([min_percentile, max_percentile], reduction_shapes, num_samples)
-        raise RuntimeError("Unknown range init type: {}".format(self.init_type))
+        # if num_samples_to_collect_override is not None:
+        #     num_samples = num_samples_to_collect_override
+        # if self.init_type == "min_max":
+        #     return MinMaxStatisticCollector(reduction_shapes, num_samples)
+        # if self.init_type == "mean_min_max":
+        #     return MeanMinMaxStatisticCollector(reduction_shapes, num_samples)
+        # if self.init_type == "threesigma":
+        #     return MedianMADStatisticCollector(reduction_shapes, num_samples)
+        # if self.init_type == "percentile":
+        #     min_percentile = self.init_type_specific_params.get("min_percentile", 0.1)
+        #     max_percentile = self.init_type_specific_params.get("max_percentile", 99.9)
+        #     return PercentileStatisticCollector([min_percentile, max_percentile], reduction_shapes, num_samples)
+        # if self.init_type == "mean_percentile":
+        #     min_percentile = self.init_type_specific_params.get("min_percentile", 0.1)
+        #     max_percentile = self.init_type_specific_params.get("max_percentile", 99.9)
+        #     return MeanPercentileStatisticCollector([min_percentile, max_percentile], reduction_shapes, num_samples)
+        # raise RuntimeError("Unknown range init type: {}".format(self.init_type))
 
 
 class PerLayerRangeInitConfig(RangeInitConfig):
